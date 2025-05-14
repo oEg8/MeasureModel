@@ -12,7 +12,7 @@ class DataGenerator:
     with random features and labels.
     """
 
-    def __init__(self, num_rows=1000, num_features=144, random_state=RANDOM_STATE):
+    def __init__(self, num_rows: int = 1000, num_features: int = 144, random_state: int = RANDOM_STATE) -> None:
         """
         Initialiseert de generator met aantal rijen en features.
 
@@ -28,7 +28,7 @@ class DataGenerator:
         np.random.seed(RANDOM_STATE)
 
 
-    def _generate_timestamps(self):
+    def _generate_timestamps(self) -> None:
         """
         Generates a list of dates with a one-day difference.
 
@@ -40,7 +40,7 @@ class DataGenerator:
             for i in range(self.num_rows)
         ]
 
-    def _generate_posture_labels(self):
+    def _generate_posture_labels(self) -> None:
         """
         Generates random posture labels with specified probabilities.
 
@@ -53,7 +53,7 @@ class DataGenerator:
             p=[0.1, 0.1, 0.1, 0.7]
         )
 
-    def generate(self, save=False, save_path='random_data.csv'):
+    def generate(self, save: bool = False, save_path: str = 'random_data.csv') -> pd.DataFrame:
         """
         Generates the dataset and returns it as a DataFrame.
 
@@ -78,7 +78,6 @@ class DataGenerator:
 
         if save:
             try:
-                os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 df.to_csv(save_path, index=False)
                 print(f"Dataset opgeslagen als '{save_path}'")
             except Exception as e:
@@ -87,12 +86,12 @@ class DataGenerator:
         return df
 
 
-def main():
+def main() -> None:
     """
     Example usage of the DataGenerator class.
     """
     generator = DataGenerator(num_rows=1000, num_features=144)
-    df = generator.generate(save=True)  
+    df = generator.generate(save=False)  
     print(df.head())
 
 

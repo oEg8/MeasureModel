@@ -7,6 +7,7 @@ import torch
 from torch import nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader, TensorDataset
+from typing import Optional
 from data_generator import DataGenerator
 
 
@@ -15,7 +16,7 @@ class SimpleNN(nn.Module):
     A simple feedforward neural network for multi-class classification.
     """
 
-    def __init__(self, input_dim: int, num_classes: int):
+    def __init__(self, input_dim: int, num_classes: int) -> None:
         super(SimpleNN, self).__init__()
         self.fc1 = nn.Linear(input_dim, 64)
         self.relu1 = nn.ReLU()
@@ -23,42 +24,48 @@ class SimpleNN(nn.Module):
         self.relu2 = nn.ReLU()
         self.output = nn.Linear(32, num_classes)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.relu1(self.fc1(x))
         x = self.relu2(self.fc2(x))
         return self.output(x)
 
 
-class PostureClassifier:
+class NNPostureClassifier:
     """
     Encapsulates the workflow for training and evaluating a neural network on posture data.
     """
 
-    def __init__(self, data_df: pd.DataFrame, batch_size: int = 16, epochs: int = 20, lr: float = 0.001):
+    def __init__(self, data: pd.DataFrame, batch_size: int = 16, epochs: int = 20, lr: float = 0.001) -> None:
         """
         Initialize the classifier with data and training parameters.
-        """
-        self.data_df = data_df
-        self.batch_size = batch_size
-        self.epochs = epochs
-        self.lr = lr
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.model = None
-        self.train_loader = None
-        self.X_test_tensor = None
-        self.y_test_tensor = None
-        self.num_classes = None
+        Args:
+            data (pd.DataFrame): Data containing posture features and labels.
+            batch_size (int): Number of samples per training batch.
+            epochs (int): Number of training epochs.
+            lr (float): Learning rate for the optimizer.
+        """
+        self.data: pd.DataFrame = data
+        self.batch_size: int = batch_size
+        self.epochs: int = epochs
+        self.lr: float = lr
+        self.device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.model: Optional[SimpleNN] = None
+        self.train_loader: Optional[DataLoader] = None
+        self.X_test_tensor: Optional[torch.Tensor] = None
+        self.y_test_tensor: Optional[torch.Tensor] = None
+        self.num_classes: Optional[int] = None
 
 
-    def preprocess_data(self):
+    def preprocess_data(self) -> None:
         """
-        Preprocess the input data into PyTorch tensors.
+        Preprocess the input data into PyTorch tensors and create a DataLoader for training.
         """
-        df = self.data_df.copy()
+        df = self.data.copy()
         df['posture_label'] = df['posture_label'].astype('category').cat.codes
 
-        X = df.drop(columns=['datetime', 'posture_label'])
+        X = df.drop(columns=['datetime', 'posture_label'], errors='ignore')
         y = df['posture_label']
 
         X_train, X_test, y_train, y_test = train_test_split(
@@ -80,15 +87,17 @@ class PostureClassifier:
         self.train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
 
 
-    def build_model(self):
+    def build_model(self) -> None:
         """
         Initialize the neural network model.
         """
-        input_dim = self.data_df.shape[1] - 2  # Exclude datetime and label
+        input_dim = self.data.shape[1] - 2  # Exclude datetime and posture_label
+        if self.num_classes is None:
+            raise ValueError("Number of classes not set. Run `preprocess_data` first.")
         self.model = SimpleNN(input_dim=input_dim, num_classes=self.num_classes).to(self.device)
 
 
-    def train(self):
+    def train(self) -> None:
         """
         Train the model using the training dataset.
         """
@@ -117,10 +126,15 @@ class PostureClassifier:
             print(f"Epoch {epoch + 1}/{self.epochs} - Average Loss: {avg_loss:.4f}")
 
 
-    def evaluate(self):
+    def evaluate(self) -> None:
         """
         Evaluate the model on the test dataset.
         """
+        if self.model is None:
+            raise ValueError("Model not built. Run `build_model` first.")
+        if self.X_test_tensor is None or self.y_test_tensor is None:
+            raise ValueError("Test data not prepared. Run `preprocess_data` first.")
+
         self.model.eval()
         self.X_test_tensor = self.X_test_tensor.to(self.device)
         self.y_test_tensor = self.y_test_tensor.to(self.device)
@@ -136,7 +150,7 @@ class PostureClassifier:
         print(classification_report(y_true, y_pred, digits=4))
 
 
-    def run(self):
+    def run(self) -> None:
         """
         Full pipeline: preprocess data, build model, train and evaluate.
         """
@@ -157,14 +171,14 @@ class PostureClassifier:
             print(f"An error occurred during the pipeline: {e}")
 
 
-def main():
+def main() -> None:
     """
     Example usage of the PostureClassifier.
     """
     generator = DataGenerator(num_rows=1000, num_features=144)
     df = generator.generate()
 
-    classifier = PostureClassifier(data_df=df, epochs=50, lr=0.001)
+    classifier = NNPostureClassifier(data=df, epochs=50, lr=0.001)
     classifier.run()
 
 

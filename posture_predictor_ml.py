@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -7,63 +6,63 @@ from sklearn.metrics import classification_report, confusion_matrix, accuracy_sc
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
-from xgboost import XGBClassifier
+# from xgboost import XGBClassifier    # xgbooost is not working in this environment
 from data_generator import DataGenerator
+from typing import Tuple, Dict, Any
 
 RANDOM_STATE = 42
 np.random.seed(RANDOM_STATE)
 
 
-class PostureModelEvaluator:
+class MLPostureClassifier:
     """
     Class for evaluating multiple ML models on posture data.
     """
 
-    def __init__(self, data, test_size=0.2, random_state=RANDOM_STATE):
+    def __init__(self, data: pd.DataFrame, test_size: float = 0.2, random_state: int = RANDOM_STATE) -> None:
         """
-        Initialises the evaluator with data and model configurations.
+        Initializes the evaluator with data and model configurations.
 
         Args:
-            data (pd.DataFrame): DataFrame met alle data.
-            test_size (float): Verhouding van de testset.
-            random_state (int): Seed voor reproduceerbaarheid.
+            data (pd.DataFrame): DataFrame containing all the posture data.
+            test_size (float): Proportion of the dataset to include in the test split.
+            random_state (int): Seed for reproducibility.
         """
-        self.data = data
-        self.test_size = test_size
-        self.random_state = random_state
-        self.models = self._initialize_models()
+        self.data: pd.DataFrame = data
+        self.test_size: float = test_size
+        self.random_state: int = random_state
+        self.models: Dict[str, Any] = self._initialize_models()
         self.X_train, self.X_test, self.y_train, self.y_test = self._load_and_prepare_data()
 
 
-    def _initialize_models(self):
+    def _initialize_models(self) -> Dict[str, Any]:
         """
-        Initialiseses the ML-models.
+        Initializes the machine learning models.
 
         Returns:
-            dict: Dictionary with model names and configurations.
+            dict: Dictionary mapping model names to instantiated model objects.
         """
         return {
             "Random Forest": RandomForestClassifier(n_estimators=100, random_state=self.random_state),
             "Gradient Boosting": GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, random_state=self.random_state),
             "Logistic Regression": LogisticRegression(max_iter=1000, solver='lbfgs', random_state=self.random_state),
             "Support Vector Machine": SVC(kernel='rbf', probability=True, random_state=self.random_state),
-            "XGBoost": XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=self.random_state)
+            # "XGBoost": XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=self.random_state)
         }
 
 
-    def _load_and_prepare_data(self):
+    def _load_and_prepare_data(self) -> Tuple[np.ndarray, np.ndarray, pd.Series, pd.Series]:
         """
         Loads and prepares the data for training and testing.
 
         Returns:
-            tuple (X_train, X_test, y_train, y_test):
+            Tuple containing:
                 X_train (np.ndarray): Training features.
                 X_test (np.ndarray): Test features.
                 y_train (pd.Series): Training labels.
                 y_test (pd.Series): Test labels.
         """
-
-        if not isinstance(self.data, pd.DataFrame): 
+        if not isinstance(self.data, pd.DataFrame):
             raise ValueError("Data must be a pandas DataFrame.")
 
         df = self.data.copy()
@@ -73,6 +72,8 @@ class PostureModelEvaluator:
 
         df = df.dropna()
         df = df.drop(columns=[col for col in ['Unnamed: 0', 'datetime'] if col in df.columns])
+
+        df['posture_label'] = df['posture_label'].astype('category').cat.codes
 
         X = df.drop(columns=['posture_label'])
         y = df['posture_label']
@@ -85,23 +86,22 @@ class PostureModelEvaluator:
         return X_train, X_test, y_train, y_test
 
 
-    def train_and_evaluate_all(self):
+    def train_and_evaluate_all(self) -> None:
         """
-        Trains and evaluates all models in the evaluator.
+        Trains and evaluates all configured models.
         """
         for name, model in self.models.items():
             print(f"\nTraining model: {name}")
             model.fit(self.X_train, self.y_train)
             self._evaluate_model(model, name)
 
-
-    def _evaluate_model(self, model, name):
+    def _evaluate_model(self, model: Any, name: str) -> None:
         """
-        Prints and evaluates the model's performance.
+        Evaluates a single model and prints performance metrics.
 
         Args:
-            model: The trained ML-model.
-            name (str): Name of the model.
+            model: The trained machine learning model.
+            name (str): The name of the model.
         """
         y_pred = model.predict(self.X_test)
         print(f"\nResults for {name}:")
@@ -110,18 +110,18 @@ class PostureModelEvaluator:
         print("Accuracy Score: {:.2f}%".format(accuracy_score(self.y_test, y_pred) * 100))
 
 
-def main():
+def main() -> None:
     """
-    Main function with example usage to generate data and evaluate models.
+    Main function demonstrating example usage: generate data and evaluate models.
     """
     generator = DataGenerator(num_rows=1000, num_features=144)
     df = generator.generate(save=True)
 
     try:
-        evaluator = PostureModelEvaluator(data=df)
+        evaluator = MLPostureClassifier(data=df)
         evaluator.train_and_evaluate_all()
     except Exception as e:
-        print(f"An error occured: {e}")
+        print(f"An error occurred: {e}")
 
 
 if __name__ == "__main__":
