@@ -8,7 +8,7 @@ This project aims to predict human posture based on pressure distribution from a
 The model currently uses **synthetically generated data**, but it is built with the goal of eventually processing **real-world pressure sensor readings**.
 
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 MeasureModel/
@@ -22,7 +22,7 @@ MeasureModel/
 ```
 
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Clone the repository
 
@@ -51,7 +51,7 @@ pip install -r requirements.txt
 If you encounter issues with `xgboost` on macOS (e.g. OpenMP errors), see the troubleshooting section below.
 
 
-## ⚙️ Usage
+## Usage
 
 To run the model and make predictions using randomly generated data:
 
@@ -62,20 +62,20 @@ python main.py
 By default, the script initializes and trains both the ML and neural network models using synthetic data, then prints predictions.
 
 
-## 🧪 Current Status
+## Current Status
 
-* ✅ ML classifier (XGBoost) implemented and functional.
-* ✅ Neural network architecture defined using PyTorch.
-* 🔄 Models train on randomly generated synthetic input.
-* 🚧 Real-world data integration in progress.
+* ML classifier (XGBoost) implemented and functional.
+* Neural network architecture defined using PyTorch.
+* Models train on randomly generated synthetic input.
+* Real-world data integration in progress.
 
 
-## 🗃 Example Input
+## Example Input
 
 Synthetic input consists of 144 pressure features (e.g., from a foot pressure mat), and a corresponding posture label (e.g., "straight", "leaning left", "leaning forward").
 
 
-## 📊 Planned Improvements
+## Planned Improvements
 
 * Integration with real foot pressure sensors.
 * Expansion of posture labels (e.g. slouching, asymmetrical stance).
@@ -83,7 +83,7 @@ Synthetic input consists of 144 pressure features (e.g., from a foot pressure ma
 * Visualization of foot pressure maps.
 
 
-## 🛠 Troubleshooting (macOS + XGBoost)
+## Troubleshooting (macOS + XGBoost)
 
 If you get an error like `libomp.dylib not found`, run:
 
@@ -104,11 +104,11 @@ conda install -c conda-forge libomp
 ```
 
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Feel free to fork the repo and submit a pull request with ideas, bug fixes, or improvements.
 
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
