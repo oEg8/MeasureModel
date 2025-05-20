@@ -2,13 +2,13 @@
 
 This project aims to predict human posture based on pressure distribution from a footprint. Two approaches are explored:
 
-* **Traditional Machine Learning** (e.g. XGBoost)
+* **Traditional Machine Learning** (e.g. RandomForestClassifier)
 * **Neural Networks** (via PyTorch)
 
 The model currently uses **synthetically generated data**, but it is built with the goal of eventually processing **real-world pressure sensor readings**.
 
 
-## Project Structure
+## Project Structure   --- UPDATE AT END OF PROJECT!! ---
 
 ```
 MeasureModel/
@@ -33,11 +33,18 @@ cd posture-predictor
 
 ### 2. Create and activate the environment
 
-We recommend using Anaconda:
+When using Anaconda:
 
 ```bash
 conda create -n yourname python=3.10
 conda activate yourname
+```
+
+When using venv:
+
+```bash
+python -m venv venv
+source venv/bin/activate
 ```
 
 ### 3. Install dependencies

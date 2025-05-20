@@ -11,7 +11,7 @@ from torch import nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader, TensorDataset
 from typing import Optional
-from data_generator import DataGenerator
+from data.data_generator import DataGenerator
 from safetensors.torch import save_file, load_file
 
 
@@ -199,9 +199,14 @@ class NNPostureClassifier:
         self.model.load_state_dict(state_dict)
         self.model.to(self.device)
 
+
     def predict(self, features: list) -> torch.Tensor:
+        """
+        Predict the posture label for a given set of features.
+        """
         logits = self.model.forward(torch.Tensor(features))
         return self.label_mapping[str(int(torch.argmax(logits)))]
+
 
     def run(self) -> None:
         """

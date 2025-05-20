@@ -7,7 +7,7 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 # from xgboost import XGBClassifier    # xgbooost is not working in this environment
-from data_generator import DataGenerator
+from data.data_generator import DataGenerator
 from typing import Tuple, Dict, Any
 
 RANDOM_STATE = 42

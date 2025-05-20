@@ -23,7 +23,7 @@ class DataGenerator:
         self.num_rows = num_rows
         self.num_features = num_features
         self.random_state = random_state
-        self.posture_labels = ['on toes', 'inbalance left', 'inbalance right', 'correct posture']
+        self.posture_labels = ['on_toes', 'inbalance_left', 'inbalance_right', 'correct_posture']
         self.start_time = datetime(2001, 12, 9, 17, 0, 0)
         np.random.seed(RANDOM_STATE)
 

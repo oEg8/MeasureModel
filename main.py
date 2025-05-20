@@ -1,4 +1,4 @@
-from data_generator import DataGenerator
+from data.data_generator import DataGenerator
 from posture_predictor_ml import MLPostureClassifier
 from posture_predictor_nn import NNPostureClassifier
 import pandas as pd
