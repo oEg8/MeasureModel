@@ -18,7 +18,7 @@ MeasureModel/
 ├── data_generator.py             # Random data generator for test cases
 ├── models/                       # Saved models (once trained)
 ├── README.md                     # Project documentation
-└──  requirements.txt              # Dependencies incl. version
+└──  requirements.txt             # Dependencies incl. version
 ```
 
 
@@ -36,8 +36,8 @@ cd posture-predictor
 We recommend using Anaconda:
 
 ```bash
-conda create -n sem6 python=3.10
-conda activate sem6
+conda create -n yourname python=3.10
+conda activate yourname
 ```
 
 ### 3. Install dependencies

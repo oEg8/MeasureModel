@@ -26,4 +26,4 @@ if __name__ == "__main__":
     d = DataGenerator(num_rows=1000, num_features=144)
     data = d.generate(save=True)
 
-    main(data, model_type='nn')
+    main(data=data, model_type='nn')
