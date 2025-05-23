@@ -23,7 +23,7 @@ class DataGenerator:
         self.num_rows = num_rows
         self.num_features = num_features
         self.random_state = random_state
-        self.posture_labels = ['on_toes', 'inbalance_left', 'inbalance_right', 'correct_posture']
+        self.posture_labels = ["correct_posture", "inbalance_left", "inbalance_right", "on_toes", "wrong_foot_position"]
         self.start_time = datetime(2001, 12, 9, 17, 0, 0)
         np.random.seed(RANDOM_STATE)
 
@@ -50,7 +50,7 @@ class DataGenerator:
         return np.random.choice(
             self.posture_labels,
             size=self.num_rows,
-            p=[0.1, 0.1, 0.1, 0.7]
+            p=[0.4, 0.15, 0.15, 0.15, 0.15]
         )
 
     def generate(self, save: bool = False, save_path: str = 'random_data.csv') -> pd.DataFrame:
