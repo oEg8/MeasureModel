@@ -1,4 +1,7 @@
 import os
+import platform
+import time
+import psutil
 from datetime import datetime
 from uuid import uuid4
 import pandas as pd
@@ -43,6 +46,7 @@ def check_runtime_environment(data_file_name:str) -> bool:
         data.to_csv(file_path, index=False)
     return True
 
+start_time = time.time()
 data_file_name = "measuredata.csv"
 if check_runtime_environment(data_file_name):
     print(file_path)
@@ -63,10 +67,10 @@ def predict_endpoint():
         error_string = "No values provided"
         print(f"Webserver: {error_string}")
         return jsonify({"error": error_string}), 400
-    # if len(json_data["values"]) != input_dim:
-    #     error_string = f"Values is of lenght: {len(json_data['values'])} instead of 210"
-    #     print(f"Webserver: {error_string}")
-    #     return jsonify({"error": error_string}), 400
+    if len(json_data["values"]) != input_dim:
+        error_string = f"Values is of lenght: {len(json_data['values'])} instead of models input dim: {input_dim}"
+        print(f"Webserver: {error_string}")
+        return jsonify({"error": error_string}), 400
 
     print(f"Webserver: Adding values to dataframe")
     response_measurement = ResponseMeasurement(
@@ -89,7 +93,7 @@ def predict_endpoint():
 
 
     print(f"Webserver: Serving response")
-    return jsonify({"prediction": model_prediction})
+    return jsonify({"prediction": model_prediction}),201
 
 @app.route("/download", methods=["GET"])
 def download_endpoint():
@@ -102,6 +106,20 @@ def download_endpoint():
         mimetype="text/csv",
         headers={"Content-disposition": f"attachment; filename={data_file_name}"}
     )
+
+@app.route("/status", methods=["GET"])
+def status_endpoint():
+    print(f"Webserver: Setting telemetry")
+    telemetry = {
+        "platform": platform.platform(),
+        "uptime" : str(int(time.time() - start_time)),
+        "cpu_load": str(int(psutil.cpu_percent(interval=1) * 10)),
+        "memory": str(int(psutil.virtual_memory().percent)) ,
+        "data_len" : str(len(data)),
+        "data_size": str(int(os.path.getsize(file_path) // 1024)) + " kb"
+    }
+    print(f"Webserver: Serving response")
+    return jsonify(telemetry), 200
 
 if __name__ == "__main__":
     PORT = 8080
