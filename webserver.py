@@ -67,21 +67,22 @@ def predict_endpoint():
         error_string = "No values provided"
         print(f"Webserver: {error_string}")
         return jsonify({"error": error_string}), 400
-    if len(json_data["values"]) != input_dim:
-        error_string = f"Values is of lenght: {len(json_data['values'])} instead of models input dim: {input_dim}"
-        print(f"Webserver: {error_string}")
-        return jsonify({"error": error_string}), 400
-
+    
     print(f"Webserver: Adding values to dataframe")
     response_measurement = ResponseMeasurement(
         measurementID = uuid4(),
         values = json_data["values"],
         target = json_data.get("target", ""),
-        prediction = json_data.get("prediction", "") or "",
+        prediction = '"',
     )
     row_int = len(data)
     data = pd.concat([data, pd.DataFrame([response_measurement.as_dict()])], ignore_index=True)
     data.to_csv(file_path, index=False)
+
+    if len(json_data["values"]) != input_dim:
+        error_string = f"Values is of lenght: {len(json_data['values'])} instead of models input dim: {input_dim}"
+        print(f"Webserver: {error_string}")
+        return jsonify({"error": error_string}), 400
 
     print(f"Webserver: Inferencing model")
     model_prediction = model.predict(response_measurement.values) 
