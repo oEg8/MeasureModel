@@ -6,6 +6,7 @@ from sklearn.metrics import classification_report, confusion_matrix, accuracy_sc
 from data.data_generator import DataGenerator
 from typing import Tuple, Dict, Any
 import time
+import pickle
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier, HistGradientBoostingClassifier
 from sklearn.svm import SVC, LinearSVC
 from sklearn.neighbors import KNeighborsClassifier
@@ -88,6 +89,9 @@ class MLPostureClassifier:
 
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
+
+        with open("scalers/ml_scaler.pkl", "wb") as f:
+            pickle.dump(scaler, f)
 
         # First split: train+val and test
         X_temp, X_test, y_temp, y_test = train_test_split(

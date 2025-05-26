@@ -1,0 +1,11 @@
+{
+  "input_dim": 210,
+  "num_classes": 5,
+  "label_mapping": {
+    "0": "correct_posture",
+    "1": "inbalance_left",
+    "2": "inbalance_right",
+    "3": "on_toes",
+    "4": "wrong_foot_position"
+  }
+}

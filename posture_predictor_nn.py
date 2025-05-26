@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from typing import Optional
 # from data.data_generator import DataGenerator
 from safetensors.torch import save_file, load_file
+import pickle
 
 
 class SimpleNN(nn.Module):
@@ -85,6 +86,9 @@ class NNPostureClassifier:
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
 
+        with open("scalers/nn_scaler.pkl", "wb") as f:
+            pickle.dump(scaler, f)
+
         self.num_classes = len(np.unique(y))
 
         X_train_tensor = torch.tensor(X_train_scaled, dtype=torch.float32)
@@ -155,10 +159,10 @@ class NNPostureClassifier:
         y_true = self.y_test_tensor.cpu().numpy()
         y_pred = y_pred.cpu().numpy()
 
-        # print("\nClassification Report:\n")
-        # print(classification_report(y_true, y_pred, digits=4))
-        # print("Confusion Matrix:\n")
-        # print(confusion_matrix(y_true, y_pred))
+        print("\nClassification Report:\n")
+        print(classification_report(y_true, y_pred, digits=4))
+        print("Confusion Matrix:\n")
+        print(confusion_matrix(y_true, y_pred))
         print(f"Accuracy: {accuracy_score(y_true, y_pred) * 100:.2f}%")
 
 
@@ -166,16 +170,16 @@ class NNPostureClassifier:
         """
         Saves weights biases & config to a file.
         """
-        if not os.path.exists("model"):
+        if not os.path.exists("models"):
             os.makedirs("model", exist_ok=True)
 
         now = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        safetensors_file_path = os.path.join("model", f"posture_model_at_{now}.safetensors")
-        config_file_path = os.path.join("model", f"posture_model_at_{now}.json")
+        safetensors_file_path = os.path.join("models", f"posture_model_at_{now}.safetensors")
+        config_file_path = os.path.join("models", f"posture_model_at_{now}.json")
 
         state_dict = self.model.state_dict()
         config = {
-            "input_dim" : self.data.shape[1] - 2,  # Exclude datetime and posture_label
+            "input_dim" : self.data.shape[1] - 3,  # Exclude measurementID, time and target
             "num_classes" : self.num_classes, 
             "label_mapping" : self.label_mapping
         }
@@ -192,8 +196,8 @@ class NNPostureClassifier:
         """
         Loads the neural network model's weights & biases from a file.
         """
-        safetensors_file_path = os.path.join("model", f"{model_name}.safetensors")
-        config_file_path = os.path.join("model", f"{model_name}.json")
+        safetensors_file_path = os.path.join("models", f"{model_name}.safetensors")
+        config_file_path = os.path.join("models", f"{model_name}.json")
         
         state_dict = load_file(safetensors_file_path)
         config = json.load(open(config_file_path))
@@ -232,8 +236,8 @@ class NNPostureClassifier:
             print("Evaluating model...")
             self.evaluate()
 
-            # print("Saving model...")
-            # self.save()
+            print("Saving model...")
+            self.save()
 
         except Exception as e:
             print(f"An error occurred during the pipeline: {e}")
@@ -243,7 +247,7 @@ def main() -> None:
     """
     Example usage of the PostureClassifier.
     """
-    df = pd.read_csv("data/processed_output_combined.csv")
+    df = pd.read_csv("data/final_combined.csv")
 
     classifier = NNPostureClassifier(data=df, epochs=100, lr=0.001)
     classifier.run()
