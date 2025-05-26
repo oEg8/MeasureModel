@@ -5,13 +5,13 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 import torch
 from torch import nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader, TensorDataset
 from typing import Optional
-from data.data_generator import DataGenerator
+# from data.data_generator import DataGenerator
 from safetensors.torch import save_file, load_file
 
 
@@ -67,11 +67,15 @@ class NNPostureClassifier:
         Preprocess the input data into PyTorch tensors and create a DataLoader for training.
         """
         df = self.data.copy()
-        df['posture_label'] = df['posture_label'].astype('category').cat.codes
-        self.label_mapping = {i: label for i, label in enumerate(sorted(self.data['posture_label'].unique()))}
+        df['target'] = df['target'].astype('category').cat.codes
+        self.label_mapping = {i: label for i, label in enumerate(sorted(self.data['target'].unique()))}
 
-        X = df.drop(columns=['datetime', 'posture_label'], errors='ignore')
-        y = df['posture_label']
+        # delete all rows where all feature columns are zero
+        feature_cols = [col for col in df.columns if col.startswith('feature')]
+        df = df[~(df[feature_cols].sum(axis=1) == 0)]
+
+        X = df.drop(columns=['time', 'target', 'measurementID'], errors='ignore')
+        y = df['target']
 
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, stratify=y, random_state=42
@@ -96,7 +100,7 @@ class NNPostureClassifier:
         """
         Initialize the neural network model.
         """
-        input_dim = self.data.shape[1] - 2  # Exclude datetime and posture_label
+        input_dim = self.data.shape[1] - 3  # Exclude measurementID, datetime and posture_label
         if self.num_classes is None:
             raise ValueError("Number of classes not set. Run `preprocess_data` first.")
         self.model = SimpleNN(input_dim=input_dim, num_classes=self.num_classes).to(self.device)
@@ -151,8 +155,11 @@ class NNPostureClassifier:
         y_true = self.y_test_tensor.cpu().numpy()
         y_pred = y_pred.cpu().numpy()
 
-        print("\nClassification Report:\n")
-        print(classification_report(y_true, y_pred, digits=4))
+        # print("\nClassification Report:\n")
+        # print(classification_report(y_true, y_pred, digits=4))
+        # print("Confusion Matrix:\n")
+        # print(confusion_matrix(y_true, y_pred))
+        print(f"Accuracy: {accuracy_score(y_true, y_pred) * 100:.2f}%")
 
 
     def save(self) -> None:
@@ -225,8 +232,8 @@ class NNPostureClassifier:
             print("Evaluating model...")
             self.evaluate()
 
-            print("Saving model...")
-            self.save()
+            # print("Saving model...")
+            # self.save()
 
         except Exception as e:
             print(f"An error occurred during the pipeline: {e}")
@@ -236,10 +243,9 @@ def main() -> None:
     """
     Example usage of the PostureClassifier.
     """
-    generator = DataGenerator(num_rows=1000, num_features=144)
-    df = generator.generate()
+    df = pd.read_csv("data/processed_output_combined.csv")
 
-    classifier = NNPostureClassifier(data=df, epochs=50, lr=0.001)
+    classifier = NNPostureClassifier(data=df, epochs=100, lr=0.001)
     classifier.run()
 
 
