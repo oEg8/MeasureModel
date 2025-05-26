@@ -7,6 +7,8 @@ from uuid import uuid4
 import pandas as pd
 from flask import Flask, request, jsonify, Response
 from posture_predictor_nn import NNPostureClassifier
+from sklearn.preprocessing import StandardScaler
+import pickle
 
 class ResponseMeasurement():
     def __init__(self, 
@@ -54,7 +56,9 @@ if check_runtime_environment(data_file_name):
 else:
     raise RuntimeError("No valid runtime environment")
 model = NNPostureClassifier()
-model.load_model(model_name="posture_model_at_2025-05-19_14-50")
+model_name = "posture_model_at_2025-05-19_14-50"
+model.load_model(model_name=model_name)
+standardScaler = pickle.load(model_name.pkl)
 input_dim = model.input_dim
 app = Flask(__name__)
 
