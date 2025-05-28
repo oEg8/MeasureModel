@@ -1,21 +1,20 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
-from data.data_generator import DataGenerator
 from typing import Tuple, Dict, Any
 import time
 import pickle
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier, HistGradientBoostingClassifier
-from sklearn.svm import SVC, LinearSVC
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier
-from catboost import CatBoostClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
 
 
 RANDOM_STATE = 42
 np.random.seed(RANDOM_STATE)
+
+DATA_PATH = "data/final_combined.csv"
+SCALER_PATH = "scalers/standard_scaler.pkl"
+MODEL_PATH = "models/ml_posture_model.pkl"
 
 
 class MLPostureClassifier:
@@ -23,7 +22,7 @@ class MLPostureClassifier:
     Class for evaluating multiple ML models on posture data.
     """
 
-    def __init__(self, data: pd.DataFrame, test_size: float = 0.2, random_state: int = RANDOM_STATE) -> None:
+    def __init__(self, data: pd.DataFrame, mode: str, random_state: int = RANDOM_STATE) -> None:
         """
         Initializes the evaluator with data and model configurations.
 
@@ -33,33 +32,16 @@ class MLPostureClassifier:
             random_state (int): Seed for reproducibility.
         """
         self.data: pd.DataFrame = data
-        self.test_size: float = test_size
+        self.mode = mode
         self.random_state: int = random_state
-        self.models: Dict[str, Any] = self._initialize_models()
-        self.X_train, self.X_val, self.X_test, self.y_train, self.y_val, self.y_test = self._load_and_prepare_data()
+        self.model = RandomForestClassifier(n_estimators=100, random_state=self.random_state)
+        self.X_train, self.X_val, self.X_test, self.y_train, self.y_val, self.y_test = self.load_and_prepare_data()
+
+        with open(SCALER_PATH, "rb") as f:
+            self.scaler = pickle.load(f)
 
 
-    def _initialize_models(self) -> Dict[str, Any]:
-        """
-        Initializes the machine learning models.
-
-        Returns:
-            dict: Dictionary mapping model names to instantiated model objects.
-        """
-        return {
-            "Random Forest": RandomForestClassifier(n_estimators=100, random_state=self.random_state),
-            "Gradient Boosting": GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, random_state=self.random_state),
-            "AdaBoost": AdaBoostClassifier(n_estimators=100, random_state=self.random_state),
-            "Hist Gradient Boosting": HistGradientBoostingClassifier(random_state=self.random_state),
-            "Support Vector Machine (RBF)": SVC(kernel='rbf', probability=True, random_state=self.random_state),
-            "Support Vector Machine (Linear)": LinearSVC(max_iter=10000, random_state=self.random_state),
-            "K-Nearest Neighbors": KNeighborsClassifier(),
-            "Decision Tree": DecisionTreeClassifier(random_state=self.random_state),
-            "CatBoost": CatBoostClassifier(verbose=0, random_state=self.random_state),
-        }
-
-
-    def _load_and_prepare_data(self) -> Tuple[np.ndarray, np.ndarray, pd.Series, pd.Series]:
+    def load_and_prepare_data(self, test_size: int = 0.2) -> Tuple[np.ndarray, np.ndarray, pd.Series, pd.Series]:
         """
         Loads and prepares the data for training and testing.
 
@@ -87,15 +69,12 @@ class MLPostureClassifier:
         X = df.drop(columns=['measurementID', 'time', 'target'])
         y = df['target']
 
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
 
-        with open("scalers/ml_scaler.pkl", "wb") as f:
-            pickle.dump(scaler, f)
+        X_scaled = self.scaler.transform(X)
 
         # First split: train+val and test
         X_temp, X_test, y_temp, y_test = train_test_split(
-            X_scaled, y, test_size=self.test_size, random_state=self.random_state, stratify=y)
+            X_scaled, y, test_size=test_size, random_state=self.random_state, stratify=y)
 
         # Second split: train and validation
         X_train, X_val, y_train, y_val = train_test_split(
@@ -105,46 +84,45 @@ class MLPostureClassifier:
         return X_train, X_val, X_test, y_train, y_val, y_test
 
 
-    def train_and_evaluate_all(self) -> None:
+    def fit(self) -> None:
         """
-        Trains and evaluates all configured models.
+        Trains and evaluates the model using an GridSearchCV for hyperparameter tuning.
         """
-        for name, model in self.models.items():
-            start_time = time.time()
-            print(f"\nTraining model: {name}")
-            model.fit(self.X_train, self.y_train)
-            self._evaluate_model(model, name)
-            print(f"Time taken for {name}: {time.time() - start_time:.2f} seconds\n")
+        param_grid = {
+            'n_estimators': [100, 200, 300],
+            'max_depth': [None, 10, 20, 30],
+            'min_samples_split': [2, 5, 10],
+            'min_samples_leaf': [1, 2, 4],
+            'max_features': ['sqrt', 'log2', None],
+            'bootstrap': [True, False]
+        }
+
+        grid_search = GridSearchCV(
+            estimator=self.model,
+            param_grid=param_grid,
+            cv=5,
+            scoring='accuracy',
+            verbose=2,
+            n_jobs=-1
+        )
+
+        print("Starting extended Grid Search for Random Forest...")
+        grid_search.fit(self.X_train, self.y_train)
+
+        print(f"\nBest parameters found:\n{grid_search.best_params_}")
+        self.model = grid_search.best_estimator_
 
 
-    def train_and_evaluate_model(self, model_name: str) -> None:
+    def evaluate_model(self) -> None:
         """
-        Trains and evaluates a single configured model.
+        Evaluates the trained model on training, validation, and test sets.
+        Prints performance metrics.
         """
-        model = self.models.get(model_name)
-        if model is None:
-            raise ValueError(f"Model '{model_name}' not found in the available models.")
-        start_time = time.time()
-        print(f"\nTraining model: {model_name}")
-        model.fit(self.X_train, self.y_train)
-        self._evaluate_model(model, model_name)
-        print(f"Time taken for {model_name}: {time.time() - start_time:.2f} seconds\n")
+        y_pred_test = self.model.predict(self.X_test)
+        y_pred_val = self.model.predict(self.X_val)
+        y_pred_train = self.model.predict(self.X_train)
 
-
-    def _evaluate_model(self, model: Any, name: str) -> None:
-        """
-        Evaluates a single model and prints performance metrics.
-
-        Args:
-            model: The trained machine learning model.
-            name (str): The name of the model.
-        """
-        y_pred_test = model.predict(self.X_test)
-        y_pred_val = model.predict(self.X_val)
-        y_pred_train = model.predict(self.X_train)
-
-        print(f"Results for {name}:")
-
+        print(f"Evaluation results:")
         print("Train Accuracy: {:.2f}%".format(accuracy_score(self.y_train, y_pred_train) * 100))
         print("Validation Accuracy: {:.2f}%".format(accuracy_score(self.y_val, y_pred_val) * 100))
         print("Test Accuracy: {:.2f}%".format(accuracy_score(self.y_test, y_pred_test) * 100))
@@ -153,18 +131,76 @@ class MLPostureClassifier:
         print("Validation Classification Report:\n", classification_report(self.y_val, y_pred_val))
 
 
-def main() -> None:
+    def predict(self, features: np.ndarray) -> int:
+        """
+        Makes a prediction using the trained model.
+
+        Args:
+            features (np.ndarray): A 1D or 2D array of input features.
+
+        Returns:
+            int: Predicted class label.
+        """
+
+        new_observation = self.scaler.transform(features)
+
+        return int(self.model.predict(new_observation)[0])
+
+
+    def save_model(self) -> None:
+        """
+        Saves the trained model to a file.
+
+        Args:
+            model_name (str): The name of the model to save.
+        """
+        with open(MODEL_PATH, 'wb') as f:
+            pickle.dump(self.model, f)
+        print(f"Model saved successfully.")
+
+
+    def load_model(self, path: str = MODEL_PATH) -> None:
+        """
+        Loads a trained model from a file.
+
+        Args:
+            model_name (str): The name of the model to load.
+        """
+        with open(path, 'rb') as f:
+            self.model = pickle.load(f)
+        print(f"Model loaded successfully.")
+
+
+def main(mode: str) -> None:
     """
     Main function demonstrating example usage: generate data and evaluate models.
-    """
-    df = pd.read_csv('data/final_combined.csv')
 
-    try:
-        evaluator = MLPostureClassifier(data=df)
-        evaluator.train_and_evaluate_all()
-    except Exception as e:
-        print(f"An error occurred: {e}")
+
+    Args:
+        mode (str): The mode of operation, e.g., 'train', 'predict'.
+            - train: Train the model.
+            - predict: Use the model to make predictions.
+    """
+    
+    df = pd.read_csv(DATA_PATH)
+    evaluator = MLPostureClassifier(data=df)
+
+    if mode == 'train':
+        try:
+            evaluator.fit()
+            evaluator.evaluate_model()
+            evaluator.save_model()
+        except Exception as e:
+            print(f"An error occurred: {e}")
+    elif mode == 'predict':
+        try:
+            evaluator.load_model()
+            evaluator.evaluate_model()
+        except Exception as e:
+            print(f"An error occurred: {e}")
+    else:
+        raise ValueError("Invalid mode. Use 'train' or 'predict'.")
 
 
 if __name__ == "__main__":
-    main()
+    main('train')

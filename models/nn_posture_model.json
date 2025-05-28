@@ -7,5 +7,14 @@
     "2": "inbalance_right",
     "3": "on_toes",
     "4": "wrong_foot_position"
-  }
+  },
+  "hidden_dims": [
+    192,
+    64,
+    16
+  ],
+  "dropout_rate": 0.6,
+  "lr": 0.00036356421038818087,
+  "batch_size": 16,
+  "epochs": 100
 }

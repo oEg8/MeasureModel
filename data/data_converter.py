@@ -1,5 +1,8 @@
 import pandas as pd
 import re
+import ast
+
+### converter voor initiele data ###
 
 # Bestand inlezen
 filename = 'data/initial_data.csv'
@@ -37,10 +40,32 @@ for i in range(0, len(df), 2):
 
 # DataFrame bouwen
 column_names = ["observation"] + [f"feature_{i+1}" for i in range(210)] + ["label"]
-result_df = pd.DataFrame(data, columns=column_names)
 
-# Resultaat bekijken
-print(f"Aantal rijen: {len(result_df)} | Aantal kolommen: {len(result_df.columns)}")
+initial_data = pd.DataFrame(data, columns=column_names)
 
-# Optioneel opslaan
-result_df.to_csv("data/processed_output.csv", index=False)
+
+
+
+### converter voor nieuwe data ###
+
+
+df = pd.read_csv('/Users/hwoutersen/Desktop/School/Jaar3/sem6/MeasureModel/data/new_data.csv')
+df.drop(columns=['prediction'], inplace=True)
+
+column_to_split = 'values'
+
+df[column_to_split] = df[column_to_split].apply(ast.literal_eval)
+
+split_df = df[column_to_split].apply(pd.Series)
+
+split_df.columns = [f"feature_{i+1}" for i in range(split_df.shape[1])]
+
+df = pd.concat([df.drop(columns=[column_to_split]), split_df], axis=1)
+
+data = pd.concat([initial_data, df], ignore_index=True)
+
+data.drop_duplicates()
+
+data.to_csv('data/final_combined.csv', index=False)
+
+print(data.shape)
