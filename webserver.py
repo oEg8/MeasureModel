@@ -5,10 +5,15 @@ import psutil
 from datetime import datetime
 from uuid import uuid4
 import pandas as pd
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify
+from flask_socketio import SocketIO, emit
 from posture_predictor_nn import NNPostureClassifier
-from sklearn.preprocessing import StandardScaler
+# from sklearn.preprocessing import StandardScaler
 import pickle
+
+def log(text):
+    now = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+    print(f"{now} {text}")
 
 class ResponseMeasurement():
     def __init__(self, 
@@ -48,73 +53,58 @@ def check_runtime_environment(data_file_name:str) -> bool:
         data.to_csv(file_path, index=False)
     return True
 
-start_time = time.time()
-data_file_name = "measuredata.csv"
-if check_runtime_environment(data_file_name):
-    print(file_path)
-    data = pd.read_csv(file_path)
-else:
-    raise RuntimeError("No valid runtime environment")
-model = NNPostureClassifier()
-model_name = "posture_model_at_2025-05-19_14-50"
-model.load_model(model_name=model_name)
-standardScaler = pickle.load(model_name.pkl)
-input_dim = model.input_dim
-app = Flask(__name__)
-
-@app.route("/predict", methods=["POST"])
-def predict_endpoint():
-    global data
-    print(f"Webserver: Reading request")
-    json_data = request.get_json()
-    if not json_data or "values" not in json_data:
-        error_string = "No values provided"
-        print(f"Webserver: {error_string}")
-        return jsonify({"error": error_string}), 400
+def scale_values(values:list):
+    log(f"Webserver: Scaling values")
+    columns = [f"feature_{i}" for i in range(1, 211)]
+    df = pd.DataFrame([values], columns=columns)
+    return standardScaler.transform(df)
     
-    print(f"Webserver: Adding values to dataframe")
+def inference(values:list):
+    log(f"Webserver: Inferencing model")
+    if max(values) <= 100:
+        error_string = "empty_mat"
+        log(f"Webserver: {error_string}")
+        return error_string
+
+    scaled_values = scale_values(values)
+    model_prediction = model.predict(scaled_values) 
+    log(f"Webserver: Prediction: '{model_prediction}'")
+    return model_prediction
+
+def save_data(measurementID:str, values:list, target:str, prediction:str):
+    global data
+    log(f"Webserver: Saving ResponseMeasurement")
     response_measurement = ResponseMeasurement(
-        measurementID = uuid4(),
-        values = json_data["values"],
-        target = json_data.get("target", ""),
-        prediction = '"',
+        measurementID = measurementID,
+        values = str(values),
+        target = target,
+        prediction = prediction
     )
-    row_int = len(data)
     data = pd.concat([data, pd.DataFrame([response_measurement.as_dict()])], ignore_index=True)
     data.to_csv(file_path, index=False)
 
-    if len(json_data["values"]) != input_dim:
-        error_string = f"Values is of lenght: {len(json_data['values'])} instead of models input dim: {input_dim}"
-        print(f"Webserver: {error_string}")
-        return jsonify({"error": error_string}), 400
+start_time = time.time()
+data_file_name = "measuredata.csv"
+if check_runtime_environment(data_file_name):
+    data = pd.read_csv(file_path)
+    log(f"Data at {file_path}")
+else:
+    raise RuntimeError("No valid runtime environment")
+model = NNPostureClassifier()
+model_name = "nn_posture_model"
+model.load_model(model_name=model_name)
+input_dim = model.input_dim
 
-    print(f"Webserver: Inferencing model")
-    model_prediction = model.predict(response_measurement.values) 
-    print(f"Webserver: Prediction: '{model_prediction}'")
+pickle_path = "scalers/standard_scaler.pkl"
+with open(pickle_path, "rb") as f:
+    standardScaler = pickle.load(f)
 
-    print(f"Webserver: Saving prediction to dataframe")
-    data.at[row_int, "prediction"] = model_prediction
-    data.to_csv(file_path, index=False)
+app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
-
-    print(f"Webserver: Serving response")
-    return jsonify({"prediction": model_prediction}),201
-
-@app.route("/download", methods=["GET"])
-def download_endpoint():
-    print(f"Webserver: Exporting dataframe to csv")
-    csv = data.to_csv(index=False)
-
-    print(f"Webserver: Serving response")
-    return Response(
-        csv,
-        mimetype="text/csv",
-        headers={"Content-disposition": f"attachment; filename={data_file_name}"}
-    )
-
-@app.route("/status", methods=["GET"])
+@app.route("/", methods=["GET"])
 def status_endpoint():
-    print(f"Webserver: Setting telemetry")
+    log(f"Webserver: Setting telemetry")
     telemetry = {
         "platform": platform.platform(),
         "uptime" : str(int(time.time() - start_time)),
@@ -123,9 +113,62 @@ def status_endpoint():
         "data_len" : str(len(data)),
         "data_size": str(int(os.path.getsize(file_path) // 1024)) + " kb"
     }
-    print(f"Webserver: Serving response")
+    log(f"Webserver: Serving response")
     return jsonify(telemetry), 200
+
+@app.route("/predict", methods=["POST"])
+def predict_endpoint():
+    global data
+    log(f"Webserver: Reading request")
+    json_data = request.get_json()
+
+    log(f"Webserver: Check (for) value(s)")
+    if not json_data or "values" not in json_data:
+        error_string = "No values provided"
+        log(f"Webserver: {error_string}")
+        return jsonify({"error": error_string}), 400
+
+    if len(json_data["values"]) == 0:
+        error_string = "Empty values provided"
+        log(f"Webserver: {error_string}")
+        return jsonify({"error": error_string}), 400
+
+    if len(json_data["values"]) != input_dim:
+        error_string = f"Values is of length: {len(json_data['values'])} instead of models input dim: {input_dim}"
+        log(f"Webserver: {error_string}")
+        return jsonify({"error": error_string}), 400
+
+    values = json_data.get("values", [])
+    target = json_data.get("target", '')
+
+    model_prediction = inference(values)
+
+    save_data(
+        measurementID = str(uuid4()), 
+        values = values, 
+        target = target,
+        prediction = model_prediction
+        )
+
+    log(f"Webserver: Serving response")
+    return jsonify({"prediction": model_prediction}),201
+    
+@socketio.on('connect')
+def connect_event():
+    log(f"Webserver: Client disconnected")
+
+@socketio.on('disconnect')
+def disconnect_event():
+    log(f"Webserver: Client disconnected")
+
+@socketio.on("inference")
+def inference_event(data):
+    values = data.get("values", [])
+    
+    model_prediction = inference(values)
+    log(f"Webserver: Serving response")
+    emit("message", {"prediction" : model_prediction})
 
 if __name__ == "__main__":
     PORT = 8080
-    app.run(host="0.0.0.0", port=PORT)
+    socketio.run(app, host="0.0.0.0", port=PORT)
