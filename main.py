@@ -22,7 +22,6 @@ def main(data: pd.DataFrame, model_type: str):
 
 if __name__ == "__main__":
 
-    d = DataGenerator(num_rows=1000, num_features=144)
-    data = d.generate(save=True)
+    data = pd.read_csv("data/processed/final_combined.csv")
 
     main(data=data, model_type='nn')

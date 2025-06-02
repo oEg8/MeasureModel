@@ -115,6 +115,9 @@ class NNPostureClassifier:
             raise ValueError("Model or data not initialized. Run `preprocess_data` and `build_model` first.")
 
         criterion = nn.CrossEntropyLoss()
+        with torch.no_grad():
+            logits = self.model(self.X_test_tensor)
+            loss = criterion(logits, self.y_test_tensor)
         optimizer = Adam(self.model.parameters(), lr=self.lr)
 
         for epoch in range(self.epochs):
@@ -159,7 +162,7 @@ class NNPostureClassifier:
         print("\nClassification Report:\n")
         print(classification_report(y_true, y_pred, digits=4))
         print("Confusion Matrix:\n")
-        print(confusion_matrix(y_true, y_pred))
+        print(confusion_matrix(y_true, y_pred, labels=list(self.label_mapping.keys())))
         print(f"Accuracy: {accuracy_score(y_true, y_pred) * 100:.2f}%")
 
 
@@ -225,7 +228,7 @@ class NNPostureClassifier:
         """
         Predict the posture label for a given set of features.
         """
-        logits = self.model.forward(torch.Tensor(features))
+        logits = self.model(torch.Tensor(features).to(self.device))
         return self.label_mapping[str(int(torch.argmax(logits)))]
 
 
