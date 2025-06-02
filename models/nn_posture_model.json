@@ -9,12 +9,12 @@
     "4": "wrong_foot_position"
   },
   "hidden_dims": [
-    192,
-    64,
-    16
+    96,
+    128,
+    32
   ],
-  "dropout_rate": 0.6,
-  "lr": 0.00036356421038818087,
+  "dropout_rate": 0.01,
+  "lr": 2.352176748042565e-05,
   "batch_size": 16,
   "epochs": 100
 }

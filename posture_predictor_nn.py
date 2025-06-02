@@ -290,8 +290,8 @@ class NNPostureClassifier:
             h1 = trial.suggest_int("h1", 32, 256, step=32)
             h2 = trial.suggest_int("h2", 16, 128, step=16)
             h3 = trial.suggest_int("h3", 8, 64, step=8)
-            dropout_rate = trial.suggest_float("dropout_rate", 0.1, 0.6, step=0.1)
-            batch_size = trial.suggest_categorical("batch_size", [8, 16, 32, 64])
+            dropout_rate = trial.suggest_float("dropout_rate", 0.01, 0.15, step=0.04)
+            batch_size = trial.suggest_categorical("batch_size", [8, 16, 32])
             epochs = 100
             lr = trial.suggest_loguniform("lr", 1e-5, 1e-2)
 
