@@ -8,13 +8,8 @@
     "3": "on_toes",
     "4": "wrong_foot_position"
   },
-  "hidden_dims": [
-    96,
-    128,
-    32
-  ],
-  "dropout_rate": 0.01,
-  "lr": 2.352176748042565e-05,
+  "dropout": 0.1,
   "batch_size": 16,
-  "epochs": 100
+  "epochs": 100,
+  "learning_rate": 0.001
 }

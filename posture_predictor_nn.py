@@ -3,7 +3,6 @@ import json
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 import torch
 from torch import nn
@@ -12,40 +11,26 @@ from torch.utils.data import DataLoader, TensorDataset
 from typing import Optional
 from safetensors.torch import save_file, load_file
 import pickle
-import optuna
-from optuna.trial import Trial
 
 
-SCALER_PATH = "scalers/standard_scaler.pkl"
-
-
-class NeuralNet(nn.Module):
+class SimpleNN(nn.Module):
     """
-    A feedforward neural network with configurable layers,
-    dropout, batch normalization, and LeakyReLU activation.
+    A simple feedforward neural network for multi-class classification with optional dropout.
     """
-
-    def __init__(self, input_dim: int, hidden_dims: list[int] = [128, 64, 32], num_classes: int = 10, dropout_rate: float = 0.5) -> None:
-        super(NeuralNet, self).__init__()
-
-        layers = []
-        in_dim = input_dim
-
-        for h_dim in hidden_dims:
-            layers.append(nn.Linear(in_dim, h_dim))
-            layers.append(nn.BatchNorm1d(h_dim))
-            layers.append(nn.LeakyReLU(negative_slope=0.1))
-            layers.append(nn.Dropout(p=dropout_rate))
-            in_dim = h_dim
-
-        self.feature_extractor = nn.Sequential(*layers)
-        self.output_layer = nn.Linear(in_dim, num_classes)
-
-        print(layers)
+    def __init__(self, input_dim: int, num_classes: int, dropout: float = 0.1) -> None:
+        super(SimpleNN, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 64)
+        self.relu1 = nn.ReLU()
+        self.dropout1 = nn.Dropout(dropout)
+        self.fc2 = nn.Linear(64, 32)
+        self.relu2 = nn.ReLU()
+        self.dropout2 = nn.Dropout(dropout)
+        self.output = nn.Linear(32, num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.feature_extractor(x)
-        return self.output_layer(x)
+        x = self.dropout1(self.relu1(self.fc1(x)))
+        x = self.dropout2(self.relu2(self.fc2(x)))
+        return self.output(x)
 
 
 class NNPostureClassifier:
@@ -53,8 +38,7 @@ class NNPostureClassifier:
     Encapsulates the workflow for training and evaluating a neural network on posture data.
     """
 
-    def __init__(self, data: pd.DataFrame = pd.DataFrame(), batch_size: int = 16, epochs: int = 20, lr: float = 0.001,
-                 hidden_dims: Optional[list[int]] = None, dropout_rate: Optional[float] = None) -> None:
+    def __init__(self, data: pd.DataFrame = pd.DataFrame(), batch_size: int = 16, epochs: int = 100, lr: float = 0.001, dropout: float = 0.1) -> None:
         """
         Initialize the classifier with data and training parameters.
 
@@ -64,15 +48,14 @@ class NNPostureClassifier:
             epochs (int): Number of training epochs.
             lr (float): Learning rate for the optimizer.
         """
-        self.data = data
-        self.batch_size = batch_size
-        self.epochs = epochs
-        self.lr = lr
-        self.hidden_dims = hidden_dims if hidden_dims is not None else [128, 64, 32]
-        self.dropout_rate = dropout_rate if dropout_rate is not None else 0.5
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.data: pd.DataFrame = data
+        self.batch_size: int = batch_size
+        self.epochs: int = epochs
+        self.lr: float = lr
+        self.dropout: float = dropout
+        self.device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.model: Optional[NeuralNet] = None
+        self.model: Optional[SimpleNN] = None
         self.train_loader: Optional[DataLoader] = None
         self.X_test_tensor: Optional[torch.Tensor] = None
         self.y_test_tensor: Optional[torch.Tensor] = None
@@ -94,15 +77,13 @@ class NNPostureClassifier:
         X = df.drop(columns=['time', 'target', 'measurementID'], errors='ignore')
         y = df['target']
 
-
-        # a pre-trainded scaler is used to scale the data
-        with open(SCALER_PATH, "rb") as f:
+        with open("scalers/standard_scaler.pkl", "rb") as f:
             scaler = pickle.load(f)
 
-        X_scaled = scaler.fit_transform(X)
+        X = scaler.transform(X)
 
         X_train, X_test, y_train, y_test = train_test_split(
-            X_scaled, y, test_size=0.2, stratify=y, random_state=42
+            X, y, test_size=0.2, stratify=y, random_state=42
         )
 
         self.num_classes = len(np.unique(y))
@@ -123,12 +104,7 @@ class NNPostureClassifier:
         input_dim = self.data.shape[1] - 3  # Exclude measurementID, datetime and posture_label
         if self.num_classes is None:
             raise ValueError("Number of classes not set. Run `preprocess_data` first.")
-        self.model = NeuralNet(
-            input_dim=input_dim,
-            hidden_dims=self.hidden_dims,
-            num_classes=self.num_classes,
-            dropout_rate=self.dropout_rate
-        ).to(self.device)
+        self.model = SimpleNN(input_dim=input_dim, num_classes=self.num_classes, dropout=self.dropout).to(self.device)
 
 
     def train(self) -> None:
@@ -202,13 +178,12 @@ class NNPostureClassifier:
             "input_dim": self.data.shape[1] - 3,
             "num_classes": self.num_classes,
             "label_mapping": self.label_mapping,
-            "hidden_dims": self.hidden_dims,
-            "dropout_rate": self.dropout_rate,
-            "lr": self.lr,
+            "dropout": self.dropout,
             "batch_size": self.batch_size,
-            "epochs": self.epochs
+            "epochs": self.epochs,
+            "learning_rate": self.lr,
         }
-
+    
         save_file(state_dict, safetensors_file_path)
         print(f"Saved {type((state_dict))} to: {safetensors_file_path}")
 
@@ -217,23 +192,33 @@ class NNPostureClassifier:
         print(f"Saved config to: {config_file_path}")
 
     
-    def load_model(self, model_name:str) -> None:
+    def load_model(self, model_name: str) -> None:
         """
         Loads the neural network model's weights & biases from a file.
         """
         safetensors_file_path = os.path.join("models", f"{model_name}.safetensors")
         config_file_path = os.path.join("models", f"{model_name}.json")
-        
-        state_dict = load_file(safetensors_file_path)
-        config = json.load(open(config_file_path))
 
-        self.input_dim = config["input_dim"]
-        self.num_classes = config["num_classes"]
-        self.label_mapping = config["label_mapping"]
-        
-        self.model = NeuralNet(input_dim=config["input_dim"], hidden_dims=[192, 64, 16], num_classes=config["num_classes"]).to(self.device)
+        # Load weights and config
+        state_dict = load_file(safetensors_file_path)
+        with open(config_file_path, "r") as f:
+            config = json.load(f)
+
+        # Load config with fallback defaults
+        self.input_dim = config.get("input_dim")
+        self.num_classes = config.get("num_classes")
+        self.label_mapping = config.get("label_mapping", {})
+        self.dropout = config.get("dropout", 0.1)
+        self.batch_size = config.get("batch_size", 16)
+        self.epochs = config.get("epochs", 100)
+        self.lr = config.get("learning_rate", 0.001)
+
+        if self.input_dim is None or self.num_classes is None:
+            raise ValueError("Invalid config file: 'input_dim' or 'num_classes' missing.")
+
+        # Build and load model
+        self.model = SimpleNN(input_dim=self.input_dim, num_classes=self.num_classes, dropout=self.dropout).to(self.device)
         self.model.load_state_dict(state_dict)
-        self.model.to(self.device)
 
 
     def predict(self, features: list) -> torch.Tensor:
@@ -242,82 +227,6 @@ class NNPostureClassifier:
         """
         logits = self.model.forward(torch.Tensor(features))
         return self.label_mapping[str(int(torch.argmax(logits)))]
-    
-
-    def tune_hyperparameters(self, n_trials: int = 30) -> dict:
-        """
-        Run Optuna hyperparameter tuning and set the best parameters to the model.
-
-        Args:
-            n_trials (int): Number of Optuna trials to run.
-
-        Returns:
-            dict: Best parameters found.
-        """
-        study = optuna.create_study(direction="maximize")
-        study.optimize(self._optuna_objective, n_trials=n_trials)
-
-        best_params = study.best_trial.params
-        print("\nBest trial parameters:")
-        for key, value in best_params.items():
-            print(f"{key}: {value}")
-
-        self.hidden_dims = [best_params["h1"], best_params["h2"], best_params["h3"]]
-        self.dropout_rate = best_params["dropout_rate"]
-        self.batch_size = best_params["batch_size"]     
-        self.lr = best_params["lr"]
-
-        self.preprocess_data()
-        self.build_model()
-        self.train()
-        self.save()
-
-        return best_params
-    
-
-    def _optuna_objective(self, trial) -> float:
-        """
-        Objective function for Optuna to optimize.
-
-        Args:
-            trial (optuna.Trial): A single trial.
-
-        Returns:
-            float: Accuracy score on test set.
-        """
-        try:
-            # Suggest hyperparameters
-            h1 = trial.suggest_int("h1", 32, 256, step=32)
-            h2 = trial.suggest_int("h2", 16, 128, step=16)
-            h3 = trial.suggest_int("h3", 8, 64, step=8)
-            dropout_rate = trial.suggest_float("dropout_rate", 0.01, 0.15, step=0.04)
-            batch_size = trial.suggest_categorical("batch_size", [8, 16, 32])
-            epochs = 100
-            lr = trial.suggest_loguniform("lr", 1e-5, 1e-2)
-
-            # Apply parameters
-            self.hidden_dims = [h1, h2, h3]
-            self.dropout_rate = dropout_rate
-            self.batch_size = batch_size
-            self.epochs = epochs
-            self.lr = lr
-
-            self.preprocess_data()
-            self.build_model()
-            self.train()
-
-            # Evaluate
-            self.model.eval()
-            with torch.no_grad():
-                logits = self.model(self.X_test_tensor.to(self.device))
-                y_pred = torch.argmax(logits, dim=1)
-
-            acc = accuracy_score(self.y_test_tensor.cpu(), y_pred.cpu())
-            return acc
-        except Exception as e:
-            print(f"Trial failed: {e}")
-        
-        return 0.0
 
 
     def run(self) -> None:
@@ -345,28 +254,13 @@ class NNPostureClassifier:
 
 
 def main() -> None:
-    data_path = "data/processed/final_combined.csv"
+    """
+    Example usage of the PostureClassifier.
+    """
+    df = pd.read_csv("data/processed/final_combined.csv")
 
-    if not os.path.exists(data_path):
-        raise FileNotFoundError(f"Data not found: {data_path}")
-
-    data = pd.read_csv(data_path)
-
-    classifier = NNPostureClassifier(data=data)
-    print(classifier.lr, classifier.hidden_dims, classifier.dropout_rate, classifier.batch_size, classifier.epochs)
-
-    use_optuna = True  # Change to True for training with hyperparameter tuning
-
-    if use_optuna:
-        print("Start hyperparameter tuning using Optuna...")
-        best_params = classifier.tune_hyperparameters(n_trials=30)
-        print("Beste parameters found:")
-        print(best_params)
-    else:
-        print("Start standard training...")
-        classifier.run()
-
-    print("Done!")
+    classifier = NNPostureClassifier(data=df)
+    classifier.run()
 
 
 if __name__ == "__main__":
