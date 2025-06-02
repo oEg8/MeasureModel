@@ -2,23 +2,38 @@
 
 This project aims to predict human posture based on pressure distribution from a footprint. Two approaches are explored:
 
-* **Traditional Machine Learning** (e.g. RandomForestClassifier)
+* **Traditional Machine Learning** (RandomForestClassifier)
 * **Neural Networks** (via PyTorch)
 
-The model currently uses **synthetically generated data**, but it is built with the goal of eventually processing **real-world pressure sensor readings**.
+The model uses real-world pressure sensor readings.
 
 
 ## Project Structure   --- UPDATE AT END OF PROJECT!! ---
 
 ```
 MeasureModel/
-├── main.py                       # Main entry point for running predictions
-├── posture_predictor_ml.py       # Traditional ML implementation
-├── posture_predictor_nn.py       # Neural Network implementation
-├── data_generator.py             # Random data generator for test cases
-├── models/                       # Saved models (once trained)
-├── README.md                     # Project documentation
-└──  requirements.txt             # Dependencies incl. version
+├── main.py                         # Main entry point for running predictions
+├── posture_predictor_ml.py         # Traditional ML posture prediction
+├── posture_predictor_nn.py         # Neural Network posture prediction
+├── scaler_generator.py             # Script to generate and save scalers
+├── webserver.py                    # (Optional) Web interface or API server
+├── data/                           # All raw and processed datasets
+│   ├── data_converter.py           # Script to convert/clean raw data
+│   ├── raw/
+│   │   ├── initial_data.csv        # Original dataset
+│   │   └── new_data.csv            # Newly collected data
+│   └── processed/
+│       └── final_combined.csv      # Merged and cleaned dataset
+├── models/                         # Trained model files
+│   ├── ml_posture_model.pkl        # Traditional ML model
+│   ├── nn_posture_model.safetensors# Neural network weights
+│   └── nn_posture_model.json       # NN model architecture
+├── scalers/                        # Preprocessing scalers
+│   └── standard_scaler.pkl         # StandardScaler object
+├── README.md                       # Project documentation
+├── requirements.txt                # Python dependencies
+└── .gitignore                      # Git ignore file
+
 ```
 
 
@@ -49,14 +64,11 @@ source venv/bin/activate
 
 ### 3. Install dependencies
 
-Install required libraries including `xgboost`, `scikit-learn`, and `torch`:
+Install required libraries including `pandas`, `scikit-learn`, and `torch`:
 
 ```bash
 pip install -r requirements.txt
 ```
-
-If you encounter issues with `xgboost` on macOS (e.g. OpenMP errors), see the troubleshooting section below.
-
 
 ## Usage
 
@@ -79,36 +91,13 @@ By default, the script initializes and trains both the ML and neural network mod
 
 ## Example Input
 
-Synthetic input consists of 144 pressure features (e.g., from a foot pressure mat), and a corresponding posture label (e.g., "straight", "leaning left", "leaning forward").
+Synthetic input consists of 210 pressure features (foot pressure points), and a corresponding posture label (e.g., "correct_posture", "inbalance_left", "on_toes").
 
 
 ## Planned Improvements
 
-* Integration with real foot pressure sensors.
+* Expansion of datapoints.
 * Expansion of posture labels (e.g. slouching, asymmetrical stance).
-* Live classification via camera + sensor input.
-* Visualization of foot pressure maps.
-
-
-## Troubleshooting (macOS + XGBoost)
-
-If you get an error like `libomp.dylib not found`, run:
-
-```bash
-brew install libomp
-```
-
-If it's already installed but not found by Python:
-
-```bash
-ln -s /opt/homebrew/opt/libomp/lib/libomp.dylib /path/to/your/conda/env/lib/libomp.dylib
-```
-
-Replace the symlink path as needed. Alternatively, try installing via Conda:
-
-```bash
-conda install -c conda-forge libomp
-```
 
 
 ## Contributing

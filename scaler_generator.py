@@ -1,6 +1,3 @@
-# this is a script to generate a scaler for the dataset for values between 0 and 1024
-
-import numpy
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from pickle import dump
@@ -22,6 +19,7 @@ def generate_dummy_data() -> pd.DataFrame:
     
     return df
 
+
 def generate_scaler(data_path: str, scaler_path: str) -> None:
     """
     Generates a StandardScaler for the dataset and saves it to a file.
@@ -38,7 +36,7 @@ def generate_scaler(data_path: str, scaler_path: str) -> None:
     
     # Fit the scaler on the feature data
     scaler.fit(df)
-    
+
     # Save the scaler to a file
     with open(scaler_path, 'wb') as f:
         dump(scaler, f)

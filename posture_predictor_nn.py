@@ -264,7 +264,7 @@ class NNPostureClassifier:
 
         self.hidden_dims = [best_params["h1"], best_params["h2"], best_params["h3"]]
         self.dropout_rate = best_params["dropout_rate"]
-        self.batch_size = best_params["batch_size"]
+        self.batch_size = best_params["batch_size"]     
         self.lr = best_params["lr"]
 
         self.preprocess_data()
