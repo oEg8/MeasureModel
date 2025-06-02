@@ -41,6 +41,8 @@ class NeuralNet(nn.Module):
         self.feature_extractor = nn.Sequential(*layers)
         self.output_layer = nn.Linear(in_dim, num_classes)
 
+        print(layers)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.feature_extractor(x)
         return self.output_layer(x)
@@ -229,7 +231,7 @@ class NNPostureClassifier:
         self.num_classes = config["num_classes"]
         self.label_mapping = config["label_mapping"]
         
-        self.model = NeuralNet(input_dim=config["input_dim"], num_classes=config["num_classes"]).to(self.device)
+        self.model = NeuralNet(input_dim=config["input_dim"], hidden_dims=[192, 64, 16], num_classes=config["num_classes"]).to(self.device)
         self.model.load_state_dict(state_dict)
         self.model.to(self.device)
 

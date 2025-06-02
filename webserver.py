@@ -4,6 +4,7 @@ import time
 import psutil
 from datetime import datetime
 from uuid import uuid4
+import numpy as np
 import pandas as pd
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit
@@ -67,6 +68,9 @@ def inference(values:list):
         return error_string
 
     scaled_values = scale_values(values)
+    scaled_values = np.array(scaled_values).reshape(1, -1) 
+    print("scaled_values: ", scaled_values)
+    print("len(scaled_values)): ", len(scaled_values))
     model_prediction = model.predict(scaled_values) 
     log(f"Webserver: Prediction: '{model_prediction}'")
     return model_prediction
