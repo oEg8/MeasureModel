@@ -82,6 +82,8 @@ class NNPostureClassifier:
 
         X = scaler.transform(X)
 
+        self.input_dim = X.shape[1]
+
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, stratify=y, random_state=42
         )
@@ -101,10 +103,9 @@ class NNPostureClassifier:
         """
         Initialize the neural network model.
         """
-        input_dim = self.data.shape[1] - 3  # Exclude measurementID, datetime and posture_label
         if self.num_classes is None:
             raise ValueError("Number of classes not set. Run `preprocess_data` first.")
-        self.model = SimpleNN(input_dim=input_dim, num_classes=self.num_classes, dropout=self.dropout).to(self.device)
+        self.model = SimpleNN(input_dim=self.input_dim, num_classes=self.num_classes, dropout=self.dropout).to(self.device)
 
 
     def train(self) -> None:
@@ -160,9 +161,9 @@ class NNPostureClassifier:
         y_pred = y_pred.cpu().numpy()
 
         print("\nClassification Report:\n")
-        print(classification_report(y_true, y_pred, digits=4))
+        print(classification_report(y_true, y_pred, digits=2))
         print("Confusion Matrix:\n")
-        print(confusion_matrix(y_true, y_pred, labels=list(self.label_mapping.keys())))
+        print(confusion_matrix(y_true, y_pred))
         print(f"Accuracy: {accuracy_score(y_true, y_pred) * 100:.2f}%")
 
 

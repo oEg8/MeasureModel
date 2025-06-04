@@ -42,8 +42,8 @@ MeasureModel/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/posture-predictor.git
-cd posture-predictor
+git clone '' ###
+cd measuremodel
 ```
 
 ### 2. Create and activate the environment
@@ -72,26 +72,20 @@ pip install -r requirements.txt
 
 ## Usage
 
-To run the model and make predictions using randomly generated data:
+To run the model and make predictions run the main.py. Specify the data that you want to be used and the machine learning type. 
 
-```bash
-python main.py
-```
-
-By default, the script initializes and trains both the ML and neural network models using synthetic data, then prints predictions.
+By default, the script initializes and trains the neural network model using actual observations, then prints diffrent evaluation metrics.
 
 
 ## Current Status
 
-* ML classifier (XGBoost) implemented and functional.
+* ML classifier (RandomForestClassifier) implemented and functional.
 * Neural network architecture defined using PyTorch.
-* Models train on randomly generated synthetic input.
-* Real-world data integration in progress.
 
 
 ## Example Input
 
-Synthetic input consists of 210 pressure features (foot pressure points), and a corresponding posture label (e.g., "correct_posture", "inbalance_left", "on_toes").
+Data input consists of 210 pressure features (foot pressure points), and a corresponding posture label (e.g., "correct_posture", "inbalance_left", "on_toes").
 
 
 ## Planned Improvements
